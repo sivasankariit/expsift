@@ -32,14 +32,14 @@ class FilterForm(forms.Form):
         super(FilterForm, self).__init__(*args, **kwargs)
 
         propTuples = []
-        for prop in properties:
+        for prop in sorted(properties):
             propTuples.append((prop, prop))
 
         self.fields['properties'].choices = propTuples
 
-        for (property, pVals) in propValues.iteritems():
+        for (property, pVals) in sorted(propValues.iteritems()):
             valTuples = []
-            for val in pVals:
+            for val in sorted(pVals):
                 valTuples.append((val, val))
             self.fields[property + '_values'] = forms.MultipleChoiceField(
                     label = property, choices = valTuples, required = False,
