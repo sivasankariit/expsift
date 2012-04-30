@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+     <title>ExpSift Home</title>
+</head>
+
+<body>
+
+<script type="text/javascript" src="http://code.jquery.com/jquery-1.7.2.min.js"></script>
+
+{% if propsDict %}
+
+    <style type="text/css">
+        div.inline { float:left; }
+        div.inline { margin:10px; }
+        .clearBoth { clear:both; }
+        #filter_values{ overflow:hidden; zoom: 1; }
+        div.sift_filter { float:left; }
+        div.sift_filter { overflow:hidden; zoom: 1; }
+        div.sift_filter { border: 2px dashed black; }
+        div.sift_filter { padding: 5px; }
+        div.sift_filter { height: 100%; }
+        div.parent { overflow:hidden; zoom:1; }
+    </style>
+
+    <script type="text/javascript">
+
+        var filterChangeFunc = function() {
+            $("#id_properties option").each(function () {
+                var sel = $(this).attr('selected');
+                if (sel)
+                    $("#div_"+$(this).text()).slideDown();
+                else
+                    $("#div_"+$(this).text()).hide();
+            });
+        };
+
+        $(document).ready(function() {
+            filterChangeFunc();
+            $("#id_properties").change(filterChangeFunc);
+        });
+
+    </script>
+
+    <form action="{% url expsift.views.filter %}" method="GET">
+    <div id="parent" class="parent">
+
+    <div id="sift_filter" class="sift_filter">
+    {% with field=form.properties %}
+    <p align="center">{{ field.errors}}</p>
+    <p align="center">{{ field.label_tag}}</p>
+    <p align="center">{{ field }}</p>
+    {% endwith %}
+    <p align="center">
+    <input type="submit" name="operation" value="Filter"/> <br>
+    <input type="reset" value="Clear"/> <br>
+    <input type="submit" name="operation" value="Home"/>
+    </p>
+    </div>
+
+    <div id="filter_values">
+    {% for field in form %}
+        {% if field.html_name != "properties" %}
+        {% if field.html_name != "goodbadfilter" %}
+        <div id="div_{{ field.label }}" class="inline" align="center">
+        <p align="left">{{ field.errors}}</p>
+        <p align="center">{{ field.label_tag}}</p>
+            {{ field }}
+        </div>
+        {% endif %}
+        {% endif %}
+    {% endfor %}
+    </div>
+
+    </div> {# parent div #}
+    <hr/>
+
+    <p align="left">
+    Validity filter:
+    {% for radio in form.goodbadfilter %}
+    {{ radio }}
+    {% endfor %}
+    <input type="submit" name="operation" value="Refresh view"/> <br>
+    </p>
+
+    </form>
+    <hr/>
+
+    {% if show_prop_val_error == '1' %}
+        <p>Select values for properties</p>
+    {% endif %}
+
+    {% if show_no_results_error == '1' %}
+        <p>No results found</p>
+    {% else %}
+        {% if res_directories %}
+        <div id="results" class="results">
+        {% include "home/expts.html" %}
+        </div>
+        {% endif %}
+    {% endif %}
+
+{% else %}
+
+    <p>No properties available</p>
+
+{% endif %}
+
+</body>
+</html>

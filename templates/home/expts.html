@@ -1,0 +1,87 @@
+{% load dict_tags %}
+{% comment %}
+<form action="{% url expsift.views.update_expts %}?{{ url_parameters }}" method="POST">
+<input type="submit" name="update_expts" value="Update Experiments"/> <br>
+<table border="1">
+<tr><th>Experiment</th><th>Properties</th><th>Comments</th></tr>
+
+{% for dir in res_directories %}
+    <tr>
+        <td>{{ dir }}</td>
+        <td>
+            {% if dir2tagsfile_dict and dir2tagsfile_dict|get_item:dir %}
+                <textarea name = "{{dir}}_tags" rows="8" cols="20">{{ dir2tagsfile_dict|get_item:dir }}</textarea>
+            {% else %}
+                <font color="red">Tags file not present.</font>
+            {% endif %}
+        </td>
+        <td>
+            <textarea name = "{{dir}}_comments" rows="8" cols="40">{% if dir2commentsfile_dict and dir2commentsfile_dict|get_item:dir %}{{ dir2commentsfile_dict|get_item:dir }}{% endif %}</textarea>
+        </td>
+    </tr>
+{% endfor %}
+
+</table>
+</form>
+{% endcomment %}
+
+{% comment %}
+{% for dir, dirProps in dir2props_dict.items %}
+    <p>
+    {{ dir }}
+    {% for prop in dirProps %}
+        {{ prop }}
+    {% endfor %}
+    </p>
+{% endfor %}
+{% endcomment %}
+
+
+{% if expt_formset %}
+<form action="{% url expsift.views.update_expts %}?{{ url_parameters }}" method="POST"> {% csrf_token %}
+
+{{ expt_formset.management_form }}
+
+<input type="submit" name="update_expts_operation" value="Update Experiments"/>
+<input type="submit" name="update_expts_operation" value="Multiplot"/> <br><br>
+
+<table border="1">
+
+<tr><th>Select</th><th>Experiment</th><th>Good/Bad</th><th>Properties</th><th>Comments</th></tr>
+
+{% for form in expt_formset %}
+<tr>
+    <td align="center">{{ form.multiplot_select }}</td>
+    <td><a href="{{ form.directory_url.value }}">{{ form.directory_display.value }}</a>{{form.directory}}</td>
+    <td>{{ form.expt_good }}</td>
+    {% if form.properties_file.value %}
+        <td>{{ form.properties_file }}{{ form.properties_file_hidden }}</td>
+    {% else %}
+        <td><font color = "red">Tags not found in file!{{ form.properties_file_hidden }}</font></td>
+    {% endif %}
+    <td>{{ form.comments_file }}{{ form.comments_file_hidden }}</td>
+</tr>
+
+
+
+{% comment %}
+        <td>{{ dir }}</td>
+        <td>
+            {% if dir2tagsfile_dict and dir2tagsfile_dict|get_item:dir %}
+                <textarea name = "{{dir}}_tags" rows="8" cols="20">{{ dir2tagsfile_dict|get_item:dir }}</textarea>
+            {% else %}
+                <font color="red">Tags file not present.</font>
+            {% endif %}
+        </td>
+        <td>
+            <textarea name = "{{dir}}_comments" rows="8" cols="40">{% if dir2commentsfile_dict and dir2commentsfile_dict|get_item:dir %}{{ dir2commentsfile_dict|get_item:dir }}{% endif %}</textarea>
+        </td>
+{% endcomment %}
+
+
+
+{% endfor %}
+
+</table>
+</form>
+{% endif %}
