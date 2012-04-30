@@ -42,9 +42,23 @@
 
 {{ expt_formset.management_form }}
 
+<script type="text/javascript">
+    $(document).ready(function() {
+        $('input[name="selectall"]').click(function() {
+            if ($(this).attr('checked')) {
+                $("#id_expt_forms :checkbox").attr('checked', 'checked');
+            } else {
+                $("#id_expt_forms :checkbox").removeAttr('checked');
+            }
+        });
+    });
+</script>
+
+<input type="checkbox" name="selectall" value="Select All" />Select All
 <input type="submit" name="update_expts_operation" value="Update Experiments"/>
 <input type="submit" name="update_expts_operation" value="Multiplot"/> <br><br>
 
+<div id="id_expt_forms">
 <table border="1">
 
 <tr><th>Select</th><th>Experiment</th><th>Good/Bad</th><th>Properties</th><th>Comments</th></tr>
@@ -61,7 +75,6 @@
     {% endif %}
     <td>{{ form.comments_file }}{{ form.comments_file_hidden }}</td>
 </tr>
-
 
 
 {% comment %}
@@ -83,5 +96,6 @@
 {% endfor %}
 
 </table>
+</div>
 </form>
 {% endif %}
