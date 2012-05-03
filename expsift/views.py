@@ -523,10 +523,11 @@ def multiplot_base(request):
     dir2props_dict = getDirProperties(dir2properties_db, sel_directories)
 
     try:
-        fp, pathname, desc = imp.find_module(m_settings['module_name'], [m_settings['path']])
+        fp, pathname, desc = imp.find_module(m_settings['module_name'])
         try:
-            m = imp.load_module(m_settings['module_name'], fp, pathname, desc)
-            return m.multiplot(dir2props_dict)
+            mod = imp.load_module(m_settings['module_name'], fp, pathname, desc)
+            multiplot_func = getattr(mod, m_settings['method_name'])
+            return multiplot_func(dir2props_dict)
         except Exception, err:
             print 'ERROR: %s' % str(err)
         finally:

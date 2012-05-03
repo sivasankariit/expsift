@@ -109,7 +109,8 @@ TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
-    '/mnt/dcswitch/dcn_loadbalancing/expsift_config/templates',
+
+    # Expsift: Include the absolute path to the expsift template directory here
 )
 
 INSTALLED_APPS = (
@@ -176,7 +177,7 @@ MAX_EXPSIFT_COMMENTS_FILE_SIZE = 102400 #100KB
 # Max length of displayed directory names. Longer directory names are
 # truncated.
 EXPT_LOGS = {
-    'directory' : '/mnt/dcswitch/dcn_loadbalancing/results-www/',
+    'directory' : '',
     'max_dir_length' : 50,
 }
 
@@ -184,6 +185,6 @@ EXPT_LOGS = {
 # If this parameter is not specified, then by default, a simple HTTP page will
 # be shown which just lists the selected set of multiplot directories
 MULTIPLOT = {
-    'module_name' : 'multiplot',
-    'path' : '/mnt/dcswitch/dcn_loadbalancing/expsift_config/scripts/',
+    'module_name' : '',
+    'method_name' : '',
 }
