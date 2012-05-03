@@ -54,9 +54,19 @@
     });
 </script>
 
-<input type="checkbox" name="selectall" value="Select All" />Select All
-<input type="submit" name="update_expts_operation" value="Update Experiments"/>
-<input type="submit" name="update_expts_operation" value="Multiplot"/> <br><br>
+<!-- Show experiment actions and number of results -->
+<table> <tr>
+
+<td style="padding-right:10px"> <input type="checkbox" name="selectall" value="Select All" /> Select All </td>
+
+<td style="padding-right:10px"> <input type="submit" name="update_expts_operation" value="Update Experiments"/> </td>
+
+<td style="padding-right:10px"> <input type="submit" name="update_expts_operation" value="Multiplot"/> </td>
+
+<td>Showing {{ expt_formset.total_form_count }} results</td>
+
+</tr> </table>
+<br>
 
 <div id="id_expt_forms">
 <table border="1">
