@@ -50,9 +50,10 @@ def main(argv):
                                           port=FLAGS.redis_db_port, db=2)
 
     # Flush the databases if required
-    properties_db.flushdb()
-    dir2properties_db.flushdb()
-    properties2dir_db.flushdb()
+    if FLAGS.flush:
+        properties_db.flushdb()
+        dir2properties_db.flushdb()
+        properties2dir_db.flushdb()
 
     # Fill in magic key-value pairs for the databases
     properties_db.set('magic_number', 16378267)
