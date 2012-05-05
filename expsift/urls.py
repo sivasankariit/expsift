@@ -9,7 +9,8 @@ urlpatterns = patterns('',
     url(r'^$', 'expsift.views.home', name='home'),
     url(r'^filter/$', 'expsift.views.filter', name='filter'),
     url(r'^update_expts/$', 'expsift.views.update_expts', name='update_expts'),
-    url(r'^multiplot/$', 'expsift.views.multiplot_base', name='multiplot'),
+    url(r'^compare_expts/$', 'expsift.views.compare_expts_base',
+        name='compare_expts'),
     # url(r'^expsift/', include('expsift.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:

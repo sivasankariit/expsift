@@ -73,7 +73,7 @@ class ExptForm(forms.Form):
             widget=forms.Textarea(attrs={'rows':'8', 'cols':'40'}))
     comments_file_hidden = forms.CharField(widget=forms.HiddenInput(),
                                            required=False)
-    multiplot_select = forms.BooleanField(required=False)
+    compare_expt_select = forms.BooleanField(required=False)
 
 
 def redis_connect(host, port):
@@ -412,6 +412,9 @@ def filter(request):
                 templateQDict['dir2commentsfile_dict'] = dir2commentsfile_dict
                 templateQDict['expt_formset'] = expt_formset
                 templateQDict['url_parameters'] = http.urlencode(request.GET, True)
+                compare_functions = getattr(settings, 'COMPARE_FUNCTIONS', {})
+                compare_operation_names = compare_functions.keys()
+                templateQDict['compare_operations'] = compare_operation_names
             else:
                 templateQDict['show_no_results_error'] = '1'
 
@@ -445,24 +448,25 @@ def update_expts(request):
         formset = ExptFormSet(request.POST)
         if formset.is_valid():
 
-            # Check if a multiplot should be generated.
+            # Check if a compare function should be called.
             # NOTE: This should really be just a GET operation, but there is no
-            # easy way to intersperse the 'multiplot select' form checkboxes and
-            # the actual experiment forms which are used for the POST operation.
+            # easy way to intersperse the 'compare_expt select' form checkboxes
+            # and the actual experiment forms which are used for the POST
+            # operation.
             # We will just redirect to a new address though. That address can be
-            # used to get the same multiplot directly if required.
-            if (request.POST['update_expts_operation'] == 'Multiplot'):
-                # TODO: Add stuff here
-                # Check which directories must be included in the multiplot
+            # used to get the same comparison page directly if required.
+            post_operation = request.POST['update_expts_operation']
+            if (post_operation != 'Update Experiments'):
+                # Check which directories must be included in the comparison
                 selected_expts = []
                 for form in formset:
                     dir = form.cleaned_data['directory']
-                    if form.cleaned_data['multiplot_select']:
+                    if form.cleaned_data['compare_expt_select']:
                         selected_expts.append(dir)
                 if selected_expts:
-                    return HttpResponseRedirect(reverse('expsift.views.multiplot_base')+'?'+http.urlencode({'selected_expts' : selected_expts}, True))
+                    return HttpResponseRedirect(reverse('expsift.views.compare_expts_base')+'?'+http.urlencode({'selected_expts' : selected_expts, 'compare_operation' : post_operation}, True))
                 else:
-                    return HttpResponseRedirect(reverse('expsift.views.multiplot_base'))
+                    return HttpResponseRedirect(reverse('expsift.views.compare_expts_base'))
 
 
             for form in formset:
@@ -506,7 +510,7 @@ def update_expts(request):
         return HttpResponse('Request method is not POST. Shouldn\'t be here!')
 
 
-def multiplot_base(request):
+def compare_expts_base(request):
     redis_db_conf = getattr(settings, 'REDIS_DB', {})
     redis_db_name = redis_db_conf['host']
     redis_db_port = redis_db_conf['port']
@@ -517,17 +521,25 @@ def multiplot_base(request):
      dir2properties_db,
      properties2dir_db) = redis_connect(redis_db_name, redis_db_port)
 
-    m_settings = getattr(settings, 'MULTIPLOT', {})
+    compare_operation = request.GET['compare_operation']
+    compare_functions = getattr(settings, 'COMPARE_FUNCTIONS', {})
+    compare_func_spec = compare_functions.get(compare_operation, {})
+
+    # Check if a valid compare operation was specified
+    if not compare_func_spec:
+        return HttpResponse('Requested compare operation "' +
+                            compare_operation + '" not available.')
+
     sel_directories = list(request.GET.getlist('selected_expts'))
 
     dir2props_dict = getDirProperties(dir2properties_db, sel_directories)
 
     try:
-        fp, pathname, desc = imp.find_module(m_settings['module_name'])
+        fp, pathname, desc = imp.find_module(compare_func_spec['module_name'])
         try:
-            mod = imp.load_module(m_settings['module_name'], fp, pathname, desc)
-            multiplot_func = getattr(mod, m_settings['method_name'])
-            return multiplot_func(dir2props_dict)
+            mod = imp.load_module(compare_func_spec['module_name'], fp, pathname, desc)
+            compare_func = getattr(mod, compare_func_spec['method_name'])
+            return compare_func(dir2props_dict)
         except Exception, err:
             print 'ERROR: %s' % str(err)
         finally:

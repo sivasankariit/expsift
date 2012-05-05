@@ -61,7 +61,10 @@
 
 <td style="padding-right:10px"> <input type="submit" name="update_expts_operation" value="Update Experiments"/> </td>
 
-<td style="padding-right:10px"> <input type="submit" name="update_expts_operation" value="Multiplot"/> </td>
+{% for compare_op in compare_operations %}
+    <td style="padding-right:10px"> <input type="submit" name="update_expts_operation" value="{{ compare_op }}"/> </td>
+{% endfor %}
+
 
 <td>Showing {{ expt_formset.total_form_count }} results</td>
 
@@ -75,7 +78,7 @@
 
 {% for form in expt_formset %}
 <tr>
-    <td align="center">{{ form.multiplot_select }}</td>
+    <td align="center">{{ form.compare_expt_select }}</td>
     <td><a href="{{ form.directory_url.value }}">{{ form.directory_display.value }}</a>{{form.directory}}</td>
     <td>{{ form.expt_good }}</td>
     {% if form.properties_file.value %}

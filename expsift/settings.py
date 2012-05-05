@@ -181,10 +181,20 @@ EXPT_LOGS = {
     'max_dir_length' : 50,
 }
 
-# Expsift: Absolute path to the multiplot module
-# If this parameter is not specified, then by default, a simple HTTP page will
-# be shown which just lists the selected set of multiplot directories
-MULTIPLOT = {
-    'module_name' : '',
-    'method_name' : '',
+# Expsift: Comparison functions for multiple directories
+# The key in this dictionary is the name of the operation (which will be
+# displayed in the homepage)
+# The value is a dictionary that specifies the module_name and method_name that
+# will be called to execute the operation. The module should be available in
+# PYTHON_PATH
+#
+# All comparison methods specified should return django.http.HttpResponse
+# objects.
+#
+# If this dictionary is empty, then no comparison operation is available.
+COMPARE_FUNCTIONS = {
+    #'Compare Operation' : {
+    #    'module_name' : '',
+    #    'method_name' : ''
+    #},
 }
