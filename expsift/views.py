@@ -66,7 +66,7 @@ class ExptForm(forms.Form):
                                            (False, 'Bad'))))
     expsift_info_error = forms.BooleanField(required=False)
     properties_file = forms.CharField(required=False,
-            widget=forms.Textarea(attrs={'rows':'8', 'cols':'20'}))
+            widget=forms.Textarea(attrs={'rows':'8', 'cols':'30'}))
     properties_file_hidden = forms.CharField(widget=forms.HiddenInput(),
                                              required=False)
     comments_file = forms.CharField(required=False,
@@ -466,7 +466,7 @@ def update_expts(request):
                 if selected_expts:
                     return HttpResponseRedirect(reverse('expsift.views.compare_expts_base')+'?'+http.urlencode({'selected_expts' : selected_expts, 'compare_operation' : post_operation}, True))
                 else:
-                    return HttpResponseRedirect(reverse('expsift.views.compare_expts_base'))
+                    return HttpResponseRedirect(reverse('expsift.views.compare_expts_base')+'?'+http.urlencode({'compare_operation' : post_operation}, True))
 
 
             for form in formset:
@@ -521,6 +521,9 @@ def compare_expts_base(request):
      dir2properties_db,
      properties2dir_db) = redis_connect(redis_db_name, redis_db_port)
 
+    if not 'compare_operation' in request.GET:
+        return HttpResponse('No compare operation specified')
+
     compare_operation = request.GET['compare_operation']
     compare_functions = getattr(settings, 'COMPARE_FUNCTIONS', {})
     compare_func_spec = compare_functions.get(compare_operation, {})
@@ -530,9 +533,11 @@ def compare_expts_base(request):
         return HttpResponse('Requested compare operation "' +
                             compare_operation + '" not available.')
 
-    sel_directories = list(request.GET.getlist('selected_expts'))
-
-    dir2props_dict = getDirProperties(dir2properties_db, sel_directories)
+    if 'selected_expts' in request.GET:
+        sel_directories = list(request.GET.getlist('selected_expts'))
+        dir2props_dict = getDirProperties(dir2properties_db, sel_directories)
+    else:
+        dir2props_dict = {}
 
     try:
         fp, pathname, desc = imp.find_module(compare_func_spec['module_name'])
