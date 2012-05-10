@@ -539,19 +539,26 @@ def compare_expts_base(request):
     else:
         dir2props_dict = {}
 
-    try:
+    if settings.DEBUG:
         fp, pathname, desc = imp.find_module(compare_func_spec['module_name'])
+        mod = imp.load_module(compare_func_spec['module_name'], fp, pathname, desc)
+        compare_func = getattr(mod, compare_func_spec['method_name'])
+        return compare_func(dir2props_dict)
+    else:
         try:
-            mod = imp.load_module(compare_func_spec['module_name'], fp, pathname, desc)
-            compare_func = getattr(mod, compare_func_spec['method_name'])
-            return compare_func(dir2props_dict)
-        except Exception, err:
-            print 'ERROR: %s' % str(err)
-        finally:
-            if fp:
-                fp.close()
-    except:
-        print 'Exception while trying to find module'
+            fp, pathname, desc = imp.find_module(compare_func_spec['module_name'])
+            try:
+                mod = imp.load_module(compare_func_spec['module_name'], fp, pathname, desc)
+                compare_func = getattr(mod, compare_func_spec['method_name'])
+                return compare_func(dir2props_dict)
+            except Exception, err:
+                print 'ERROR: %s' % str(err)
+            finally:
+                if fp:
+                    fp.close()
+        except:
+            print ('Exception while trying to find comparison module:',
+                   compare_func_spec['module_name'])
 
 
     return HttpResponse('Requested expts = ' + str(request.GET.getlist('selected_expts')))
