@@ -1,4 +1,4 @@
-{% load dict_tags %}
+{% load expsift_custom_filters %}
 {% comment %}
 <form action="{% url expsift.views.update_expts %}?{{ url_parameters }}" method="POST">
 <input type="submit" name="update_expts" value="Update Experiments"/> <br>
@@ -74,13 +74,25 @@
 <div id="id_expt_forms">
 <table border="1">
 
-<tr><th>Select</th><th>Experiment</th><th>Good/Bad</th><th>Properties</th><th>Comments</th></tr>
+<tr>
+    <th>Select</th>
+    <th>Experiment</th>
+    <th>Good/Bad</th>
+    <th>Unique Properties</th>
+    <th>Properties</th>
+    <th>Comments</th>
+</tr>
 
 {% for form in expt_formset %}
 <tr>
     <td align="center">{{ form.compare_expt_select }}</td>
     <td><a href="{{ form.directory_url.value }}">{{ form.directory_display.value }}</a>{{form.directory}}</td>
     <td>{{ form.expt_good }}</td>
+    <td style="padding-left:5px; padding-right:5px">
+        {% for prop in form|get_expt_unique_props %}
+            {{ prop }}<br>
+        {% endfor %}
+    </td>
     {% if form.properties_file.value %}
         <td>{{ form.properties_file }}{{ form.properties_file_hidden }}</td>
     {% else %}

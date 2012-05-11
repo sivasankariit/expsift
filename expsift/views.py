@@ -7,6 +7,7 @@ from django.shortcuts import render_to_response
 from django.forms.widgets import SelectMultiple
 from django.template import RequestContext
 from django.core.urlresolvers import reverse
+from django.forms import formsets
 from django.forms.formsets import formset_factory
 from django.utils import http
 from django import forms
@@ -15,6 +16,7 @@ import imp
 import itertools
 import os
 import redis
+from expsift.utils import getCommonAndUniqueProperties
 
 
 class FilterForm(forms.Form):
@@ -46,34 +48,78 @@ class FilterForm(forms.Form):
                     widget=forms.SelectMultiple(attrs={'size':'8'}))
 
 
+# A custom BaseFormSet to create ExptForms with appropriate keyword arguments
+# passed to the Form constructor
+# The keyword argument 'unique_props' has to be a list of the set of unique
+# properties for each ExptForm. The order of the sets in the list should be the
+# same as the order of forms in the 'initial' keyword argument
+class ExptBaseFormSet(formsets.BaseFormSet):
+
+    def __init__(self, unique_props = [], *args, **kwargs):
+        self.unique_props = unique_props
+        super(ExptBaseFormSet, self).__init__(*args, **kwargs)
+
+
+    def _construct_forms(self):
+        # instantiate all the forms and put them in self.forms
+        self.forms = []
+        for i in xrange(self.total_form_count()):
+            if self.unique_props:
+                unique = self.unique_props[i]
+            else:
+                unique = []
+
+            self.forms.append(self._construct_form(i, unique_props = unique))
+
+
 class ExptForm(forms.Form):
+
+    # Absolute directory path
     directory = forms.CharField(widget=forms.HiddenInput(),
                                 required=False)
+
+    # (Shortened) name displayed for the directory
     directory_display = forms.CharField(widget=forms.HiddenInput(),
                                         required=False)
+
+    # URL of experiment directory
     directory_url = forms.CharField(widget=forms.HiddenInput(),
                                     required=False)
+
+    # When was the experiment conducted? (Actually just the timestamp value
+    # stored in the expsift_info file)
     timestamp = forms.DateTimeField(
             required = False,
             input_formats = ['%Y-%m-%d_%H:%M:%S.%f',
                              '%Y-%m-%d %H:%M:%S.%f',
                              '%Y-%m-%d_%H:%M:%S',
                              '%Y-%m-%d %H:%M:%S'])
+
+    # Experiment is marked as good/bad/unknown
     expt_good = forms.NullBooleanField(
             required = False,
             widget=forms.Select(choices = ((None, 'Unknown'),
                                            (True, 'Good'),
                                            (False, 'Bad'))))
-    expsift_info_error = forms.BooleanField(required=False)
+
+    # Properties from the expsift_tags file (text read from the file)
     properties_file = forms.CharField(required=False,
             widget=forms.Textarea(attrs={'rows':'8', 'cols':'30'}))
     properties_file_hidden = forms.CharField(widget=forms.HiddenInput(),
                                              required=False)
+
+    # Comments from the expsift_comments file (text read from the file)
     comments_file = forms.CharField(required=False,
             widget=forms.Textarea(attrs={'rows':'8', 'cols':'40'}))
     comments_file_hidden = forms.CharField(widget=forms.HiddenInput(),
                                            required=False)
+
+    # Is the experiment selected for comparison?
     compare_expt_select = forms.BooleanField(required=False)
+
+    def __init__(self, unique_props = [], *args, **kwargs):
+        super(ExptForm, self).__init__(*args, **kwargs)
+        self.unique_properties = unique_props
 
 
 def redis_connect(host, port):
@@ -171,12 +217,14 @@ def readDirCommentsFiles(directories):
 
 
 def createExptFormset(directories, dir2good_dict, dir2timestamps_dict,
-                      dir2tagsfile_dict, dir2commentsfile_dict):
+                      dir2tagsfile_dict, dir2commentsfile_dict, unique_props):
     initialFormData = []
     expt_logs_conf = getattr(settings, 'EXPT_LOGS', {})
     expt_logs_dir = expt_logs_conf['directory']
     expt_dir_max_len = expt_logs_conf['max_dir_length']
-    ExptFormSet = formset_factory(ExptForm, extra=0, max_num=len(directories))
+    ExptFormSet = formset_factory(ExptForm, formset = ExptBaseFormSet,
+                                  extra=0, max_num=len(directories))
+    unique_properties = []
     for dir in directories:
         # Ignore entry if the directory is not in the expt-logs root directory
         if not dir.startswith(expt_logs_dir):
@@ -198,11 +246,14 @@ def createExptFormset(directories, dir2good_dict, dir2timestamps_dict,
         initial_dict['timestamp'] = dir2timestamps_dict[dir]
         initial_dict['expt_good'] = dir2good_dict.get(dir, None)
 
+        unique_properties.append(sorted(unique_props[dir]))
         initialFormData.append(initial_dict)
+
     # Sort the experiments in reverse chronological order
     initialFormData.sort(key=lambda item:item['timestamp'], reverse=True)
 
-    formset = ExptFormSet(initial=initialFormData)
+    formset = ExptFormSet(initial=initialFormData,
+                          unique_props = unique_properties)
 
     return formset
 
@@ -396,15 +447,22 @@ def filter(request):
                              'show_prop_val_error' : '0'}
 
             if res_directories:
-                dir2props_dict = getDirProperties(dir2properties_db, res_directories)
+                dir2props_dict = getDirProperties(dir2properties_db,
+                                                  res_directories)
                 dir2tagsfile_dict = readDirTagsFiles(res_directories)
                 dir2commentsfile_dict = readDirCommentsFiles(res_directories)
-                dir2timestamps_dict = getDirTimestamps(dir2properties_db, res_directories)
+                dir2timestamps_dict = getDirTimestamps(dir2properties_db,
+                                                       res_directories)
+
+                (common_props,
+                 unique_props) = getCommonAndUniqueProperties(dir2props_dict)
+
                 expt_formset = createExptFormset(res_directories,
                                                  dir2good_dict,
                                                  dir2timestamps_dict,
                                                  dir2tagsfile_dict,
-                                                 dir2commentsfile_dict)
+                                                 dir2commentsfile_dict,
+                                                 unique_props)
                 templateQDict['show_no_results_error'] = '0'
                 templateQDict['res_directories'] = res_directories
                 templateQDict['dir2props_dict'] = dir2props_dict
