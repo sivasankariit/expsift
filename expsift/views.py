@@ -17,6 +17,7 @@ import itertools
 import os
 import redis
 from expsift.utils import getCommonAndUniqueProperties
+from expsift.utils import getPropertyNameAndValues
 
 
 class FilterForm(forms.Form):
@@ -120,6 +121,27 @@ class ExptForm(forms.Form):
     def __init__(self, unique_props = [], *args, **kwargs):
         super(ExptForm, self).__init__(*args, **kwargs)
         self.unique_properties = unique_props
+        # Set the class for the experiment select box to all the unique
+        # properties for this experiment
+        if unique_props:
+            class_str = (' '.join([http.urlquote_plus(x.replace('=', '-__--__-', 1)) for x in unique_props]))
+            select_box = self.fields['compare_expt_select']
+            select_box.widget.attrs.update({'class' : class_str})
+
+
+class SelectDialogForm(forms.Form):
+
+    def __init__(self, propValues = {}, *args, **kwargs):
+
+        super(SelectDialogForm, self).__init__(*args, **kwargs)
+
+        for (pName, pVals) in sorted(propValues.iteritems()):
+            valTuples = []
+            for val in sorted(pVals):
+                valTuples.append((val, val))
+            self.fields[pName+ '_values'] = forms.MultipleChoiceField(
+                    label = pName, choices = valTuples, required = False,
+                    widget=forms.SelectMultiple(attrs={'size':'8'}))
 
 
 def redis_connect(host, port):
@@ -457,6 +479,17 @@ def filter(request):
                 (common_props,
                  unique_props) = getCommonAndUniqueProperties(dir2props_dict)
 
+                unique_props_dict = {}
+                for directory, props in unique_props.iteritems():
+                    curr_props_dict = getPropertyNameAndValues(props)
+                    for prop_name, vals in curr_props_dict.iteritems():
+                        if unique_props_dict.get(prop_name):
+                            unique_props_dict[prop_name] |= vals
+                        else:
+                            unique_props_dict[prop_name] = vals
+
+                select_form = SelectDialogForm(propValues = unique_props_dict)
+
                 expt_formset = createExptFormset(res_directories,
                                                  dir2good_dict,
                                                  dir2timestamps_dict,
@@ -469,6 +502,7 @@ def filter(request):
                 templateQDict['dir2tagsfile_dict'] = dir2tagsfile_dict
                 templateQDict['dir2commentsfile_dict'] = dir2commentsfile_dict
                 templateQDict['expt_formset'] = expt_formset
+                templateQDict['select_dialog_form'] = select_form
                 templateQDict['url_parameters'] = http.urlencode(request.GET, True)
                 compare_functions = getattr(settings, 'COMPARE_FUNCTIONS', {})
                 compare_operation_names = compare_functions.keys()

@@ -1,4 +1,6 @@
 {% load expsift_custom_filters %}
+{% load staticfiles %}
+
 {% comment %}
 <form action="{% url expsift.views.update_expts %}?{{ url_parameters }}" method="POST">
 <input type="submit" name="update_expts" value="Update Experiments"/> <br>
@@ -38,9 +40,29 @@
 
 
 {% if expt_formset %}
-<form action="{% url expsift.views.update_expts %}?{{ url_parameters }}" method="POST"> {% csrf_token %}
 
-{{ expt_formset.management_form }}
+<!-- Dialog box for selecting experiments -->
+<div id="dialog-form" title="Experiment selector">
+    <form>
+    {% for field in select_dialog_form %}
+        <div id="div_{{ field.label }}" class="inline" align="center">
+        <p align="left">{{ field.errors }}</p>
+        <p align="center">{{ field.label_tag }}</p>
+        {{ field }}
+        </div>
+    {% endfor %}
+    </form>
+</div>
+
+
+<style type="text/css">
+    div#dialog-form label, div#dialog-form input { display:block; }
+    div#dialog-form { font: 62.5% "Verdana", sans-serif; }
+    div#dialog-form label, div#dialog-form p { font-size: 1.2em; line-height: 1.5; }
+</style>
+
+<script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
+<link rel=StyleSheet href="{% static 'css/jquery-ui-1.8.20.custom.css'%}" type="text/css" media=screen>
 
 <script type="text/javascript">
     $(document).ready(function() {
@@ -54,12 +76,83 @@
     });
 </script>
 
+<script>
+    $(document).ready(function() {
+
+        $("#sel_filter_button").click(function() {
+            $("#dialog-form").dialog( "open" );
+        });
+
+        $("#dialog-form").dialog({
+            autoOpen: false,
+            height: "auto",
+            width: "auto",
+            modal: true,
+            buttons: {
+                "Select": function() {
+                    // Find what property values have been selected and
+                    // construct an array 'cross' which has the cross product of
+                    // selected property value strings
+                    var first = true;
+                    var cross = [];
+                    $("#dialog-form select").each(function() {
+                        var values = $(this).val();
+                        var prop_name = $(this).attr('name');
+                        prop_name = prop_name.substr(0, prop_name.length - 7);
+                        if (values == null)
+                            return;
+                        var cross_new = []
+                        $(values).each(function() {
+                            value = this;
+                            if (cross.length == 0) {
+                                cross_new.push(['.' + prop_name + '-__--__-' + value]);
+                            } else {
+                                $(cross).each(function(i) {
+                                    cross_new.push(cross[i] + '.' + prop_name + '-__--__-' + value);
+                                });
+                            }
+                        });
+                        cross = cross_new;
+                        first = false;
+                    });
+                    // Select all the checkboxes corresponding to the
+                    // filtered experiments
+                    var selected_total = 0;
+                    var selected_already = 0;
+                    $(cross).each(function(i) {
+                        var checkboxes = $("#id_expt_forms " + this + ":checkbox");
+                        selected_total += checkboxes.length;
+                        selected_already += $($(checkboxes).selector + ":checked").length;
+                        $(checkboxes).attr('checked', 'checked');
+                    });
+                    $(this).dialog("close");
+                    var selected_new = selected_total - selected_already;
+                    alert("Selected " + selected_total + " (" + selected_new + " new)");
+                },
+                Cancel: function() {
+                    $(this).dialog("close");
+                }
+            },
+        })
+
+    });
+</script>
+
+
+<!-- Display experiments -->
+<form id="update_form" action="{% url expsift.views.update_expts %}?{{ url_parameters }}" method="POST"> {% csrf_token %}
+
+{{ expt_formset.management_form }}
+
+
 <!-- Show experiment actions and number of results -->
 <table> <tr>
 
 <td style="padding-right:10px"> <input type="checkbox" name="selectall" value="Select All" /> Select All </td>
 
 <td style="padding-right:10px"> <input type="submit" name="update_expts_operation" value="Update Experiments"/> </td>
+
+<td style="padding-right:10px"> <input id="sel_filter_button" class="inp_button" type="button" name="Selection filter" value="Selection Filter"/> </td>
 
 {% for compare_op in compare_operations %}
     <td style="padding-right:10px"> <input type="submit" name="update_expts_operation" value="{{ compare_op }}"/> </td>
@@ -71,6 +164,8 @@
 </tr> </table>
 <br>
 
+
+<!-- Show experiment directory results -->
 <div id="id_expt_forms">
 <table border="1">
 

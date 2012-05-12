@@ -23,3 +23,31 @@ def getCommonAndUniqueProperties(dir2prop_dict):
         unique_props[directory] = unique
 
     return common_props, unique_props
+
+
+# Parameters:
+# - prop_val_str: A string of the form "<property_name>=<value>"
+#
+# Returns:
+# - A tuple consisting of the property name and value (both strings)
+def getPropNameAndValue(prop_val_str):
+    line = prop_val_str.split('=', 1)
+    assert(len(line) == 2)
+    return line[0], line[1]
+
+
+# Parameters:
+# - property_set: Set of prop_val strings
+#
+# Returns:
+# - Dictionary that maps property names to the set of values for that property
+#   in the input prop_val strings
+def getPropertyNameAndValues(property_set):
+    props_dict = {}
+    for prop_val_str in property_set:
+        prop, val = getPropNameAndValue(prop_val_str)
+        if not props_dict.get(prop) is None:
+            props_dict[prop].add(val)
+        else:
+            props_dict[prop] = set([val])
+    return props_dict
