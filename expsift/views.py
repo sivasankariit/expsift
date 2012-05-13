@@ -121,12 +121,12 @@ class ExptForm(forms.Form):
     def __init__(self, unique_props = [], *args, **kwargs):
         super(ExptForm, self).__init__(*args, **kwargs)
         self.unique_properties = unique_props
-        # Set the class for the experiment select box to all the unique
-        # properties for this experiment
+        # Store the properties for the directory in a custom HTML5 data
+        # attribute for the directory's checkbox.
         if unique_props:
-            class_str = (' '.join([http.urlquote_plus(x.replace('=', '-__--__-', 1)) for x in unique_props]))
+            props_str = ' '.join([x.replace(' ', '___', 1) for x in unique_props])
             select_box = self.fields['compare_expt_select']
-            select_box.widget.attrs.update({'class' : class_str})
+            select_box.widget.attrs.update({'data-expsift-uniq-props' : props_str})
 
 
 class SelectDialogForm(forms.Form):

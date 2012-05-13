@@ -99,16 +99,18 @@
                         var values = $(this).val();
                         var prop_name = $(this).attr('name');
                         prop_name = prop_name.substr(0, prop_name.length - 7);
+                        prop_name_match = prop_name.replace(' ', '___');
                         if (values == null)
                             return;
                         var cross_new = []
                         $(values).each(function() {
                             value = this;
+                            value_match = value.replace(' ', '___');
                             if (cross.length == 0) {
-                                cross_new.push(['.' + prop_name + '-__--__-' + value]);
+                                cross_new.push(['[data-expsift-uniq-props~="' + prop_name_match + '=' + value_match + '"]']);
                             } else {
                                 $(cross).each(function(i) {
-                                    cross_new.push(cross[i] + '.' + prop_name + '-__--__-' + value);
+                                    cross_new.push(cross[i] + '[data-expsift-uniq-props~="' + prop_name_match + '=' + value_match + '"]');
                                 });
                             }
                         });
