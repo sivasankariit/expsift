@@ -55,10 +55,29 @@
 </div>
 
 
+<!-- Dialog box for setting new tag -->
+<div id="dialog-expt-tag" title="Set new tag">
+    <form id="expt_tag_form">
+        <label for="old_property_name">Old Property name</label>
+        <input type="text" name="old_prop_name"/>
+        <label for="old_property_val">Old Property value</label>
+        <input type="text" name="old_prop_value"/>
+        <label for="new_property_name">New Property name</label>
+        <input type="text" name="new_prop_name"/>
+        <label for="new_property_val">New Property value</label>
+        <input type="text" name="new_prop_value"/>
+    </form>
+</div>
+
+
 <style type="text/css">
     div#dialog-form label, div#dialog-form input { display:block; }
     div#dialog-form { font: 62.5% "Verdana", sans-serif; }
     div#dialog-form label, div#dialog-form p { font-size: 1.2em; line-height: 1.5; }
+
+    div#dialog-expt-tag label, div#dialog-expt-tag input { display:block; }
+    div#dialog-expt-tag { font: 62.5% "Verdana", sans-serif; }
+    div#dialog-expt-tag label, div#dialog-expt-tag p { font-size: 1.2em; line-height: 1.5; }
 </style>
 
 <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.8.18/jquery-ui.min.js"></script>
@@ -81,6 +100,14 @@
 
         $("#sel_filter_button").click(function() {
             $("#dialog-form").dialog( "open" );
+        });
+
+        $("#add_tag_button").click(function() {
+            if ($("#id_expt_forms :checkbox:checked").length == 0) {
+                alert("No experiments selected")
+            } else {
+                $("#dialog-expt-tag").dialog( "open" );
+            }
         });
 
         $("#dialog-form").dialog({
@@ -135,7 +162,48 @@
                     $(this).dialog("close");
                 }
             },
-        })
+        });
+
+        $("#dialog-expt-tag").dialog({
+            autoOpen: false,
+            height: "auto",
+            width: "auto",
+            modal: true,
+            buttons: {
+                "Add": function() {
+                    $(this).dialog("close");
+                    var old_prop_name = $("#expt_tag_form :input[name='old_prop_name']").val();
+                    var old_prop_value = $("#expt_tag_form :input[name='old_prop_value']").val();
+                    var new_prop_name = $("#expt_tag_form :input[name='new_prop_name']").val();
+                    var new_prop_value = $("#expt_tag_form :input[name='new_prop_value']").val();
+                    var old_prop_name_hidden = $("<input>").attr("type", "hidden").attr("name", "update_old_prop_name").val(old_prop_name);
+                    var old_prop_value_hidden = $("<input>").attr("type", "hidden").attr("name", "update_old_prop_value").val(old_prop_value);
+                    var new_prop_name_hidden = $("<input>").attr("type", "hidden").attr("name", "update_new_prop_name").val(new_prop_name);
+                    var new_prop_value_hidden = $("<input>").attr("type", "hidden").attr("name", "update_new_prop_value").val(new_prop_value);
+                    if (new_prop_name == "") {
+                        alert("New property name not specified");
+                        return;
+                    } else if (new_prop_value == "") {
+                        alert("New property value not specified");
+                        return;
+                    }
+
+                    $("#update_form").append($(old_prop_name_hidden));
+                    $("#update_form").append($(old_prop_value_hidden));
+                    $("#update_form").append($(new_prop_name_hidden));
+                    $("#update_form").append($(new_prop_value_hidden));
+
+                    var update_expts_operation_hidden =
+                    $("<input>").attr("type", "hidden").attr("name", "update_expts_operation").val("Update Tag");
+                    $("#update_form").append($(update_expts_operation_hidden));
+
+                    $("#update_form").submit();
+                },
+                Cancel: function() {
+                    $(this).dialog("close");
+                }
+            }
+        });
 
     });
 </script>
@@ -153,6 +221,8 @@
 <td style="padding-right:10px"> <input type="checkbox" name="selectall" value="Select All" /> Select All </td>
 
 <td style="padding-right:10px"> <input type="submit" name="update_expts_operation" value="Update Experiments"/> </td>
+
+<td style="padding-right:10px"> <input id="add_tag_button" class="inp_button" type="button" name="add_tag" value="Update Tag"/> </td>
 
 <td style="padding-right:10px"> <input id="sel_filter_button" class="inp_button" type="button" name="Selection filter" value="Selection Filter"/> </td>
 

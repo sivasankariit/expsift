@@ -16,8 +16,7 @@ import imp
 import itertools
 import os
 import redis
-from expsift.utils import getCommonAndUniqueProperties
-from expsift.utils import getPropertyNameAndValues
+import expsift.utils
 
 
 class FilterForm(forms.Form):
@@ -280,6 +279,71 @@ def createExptFormset(directories, dir2good_dict, dir2timestamps_dict,
     return formset
 
 
+# Returns a new properties string where some old properties have been replaced,
+# or added or updated.
+def getUpdatedPropertiesString(old_properties_string,
+                               update_old_prop_name, update_old_prop_value,
+                               update_new_prop_name, update_new_prop_value):
+
+    # Nothing to update in some corner cases:
+    # 1. New property value is not specified
+    if not update_new_prop_value:
+        return old_properties_string
+    # 2. New property name is not specified and old property name does not
+    #    have to be retained
+    elif (not update_new_prop_name and
+          not update_old_prop_name):
+        return old_properties_string
+
+    # Check if the new property just needs to be added without checks
+    if not update_old_prop_name and not update_old_prop_value:
+        new_properties_string = ''
+        # Copy the old properties
+        for line in old_properties_string.splitlines():
+            new_properties_string += line.rstrip() + '\n'
+        # Add the new property
+        new_properties_string += ''.join([update_new_prop_name, '=',
+                                          update_new_prop_value, '\n'])
+
+        return new_properties_string
+
+    new_properties_string = ''
+    for line in old_properties_string.splitlines():
+        # Comment lines
+        if line[0] == '#':
+            new_properties_string += line.rstrip() + '\n'
+            continue
+        prop_val_str = line.rstrip()
+        prop, val = expsift.utils.getPropNameAndValue(prop_val_str)
+        # Old property has to be replaced if both name and value matches
+        if (update_old_prop_name and
+            update_old_prop_value and
+            prop == update_old_prop_name and
+            val == update_old_prop_value):
+            new_properties_string += ''.join([update_new_prop_name, '=',
+                                              update_new_prop_value, '\n'])
+
+        # Old property has to be replaced if name matches
+        elif (update_old_prop_name and
+              prop == update_old_prop_name and
+              update_new_prop_name):
+            new_properties_string += ''.join([update_new_prop_name, '=',
+                                              update_new_prop_value, '\n'])
+
+        # Old property value has to be replaced if name matches and the property
+        # name is retained
+        elif (update_old_prop_name and
+              prop == update_old_prop_name):
+            new_properties_string += ''.join([update_old_prop_name, '=',
+                                              update_new_prop_value, '\n'])
+
+        # Old property is retained as is
+        else:
+            new_properties_string += prop_val_str + '\n'
+
+    return new_properties_string
+
+
 def updatePropertiesInDatabase(directory, properties_db,
                                dir2properties_db, properties2dir_db):
 
@@ -315,7 +379,7 @@ def updatePropertiesInDatabase(directory, properties_db,
         # Comment lines
         if line[0] == '#':
             continue
-        prop_val_str = line.strip()
+        prop_val_str = line.rstrip()
         line = prop_val_str.split('=', 1)
         assert(len(line) == 2)
         property = line[0]
@@ -476,12 +540,12 @@ def filter(request):
                 dir2timestamps_dict = getDirTimestamps(dir2properties_db,
                                                        res_directories)
 
-                (common_props,
-                 unique_props) = getCommonAndUniqueProperties(dir2props_dict)
+                (common_props, unique_props) = (
+                        expsift.utils.getCommonAndUniqueProperties(dir2props_dict))
 
                 unique_props_dict = {}
                 for directory, props in unique_props.iteritems():
-                    curr_props_dict = getPropertyNameAndValues(props)
+                    curr_props_dict = expsift.utils.getPropertyNameAndValues(props)
                     for prop_name, vals in curr_props_dict.iteritems():
                         if unique_props_dict.get(prop_name):
                             unique_props_dict[prop_name] |= vals
@@ -540,6 +604,40 @@ def update_expts(request):
         formset = ExptFormSet(request.POST)
         if formset.is_valid():
 
+            post_operation = request.POST['update_expts_operation']
+
+            # Check if a new tag (property) must be added to selected
+            # directories
+            if (post_operation == 'Update Tag'):
+                update_old_prop_name = request.POST['update_old_prop_name']
+                update_old_prop_value = request.POST['update_old_prop_value']
+                update_new_prop_name = request.POST['update_new_prop_name']
+                update_new_prop_value = request.POST['update_new_prop_value']
+
+                # Get the old properties for each of the selected directories
+                selected_expt_old_props = {}
+                for form in formset:
+                    if form.cleaned_data['compare_expt_select']:
+                        directory = form.cleaned_data['directory']
+                        props_file_old = (
+                                form.cleaned_data['properties_file_hidden'])
+                        selected_expt_old_props[directory] = props_file_old
+
+                # Update properties in the selected directories
+                if selected_expt_old_props:
+                    for directory, props_file_old in selected_expt_old_props.iteritems():
+                        props_file_new = getUpdatedPropertiesString(
+                                props_file_old, update_old_prop_name,
+                                update_old_prop_value, update_new_prop_name,
+                                update_new_prop_value)
+                        if (os.path.exists(directory)):
+                            writePropertiesFile(directory, props_file_new)
+                            updatePropertiesInDatabase(directory, properties_db,
+                                                       dir2properties_db,
+                                                       properties2dir_db)
+                # Redirect back to the page from where the POST was made
+                return HttpResponseRedirect(reverse('expsift.views.filter')+'?'+http.urlencode(request.GET, True))
+
             # Check if a compare function should be called.
             # NOTE: This should really be just a GET operation, but there is no
             # easy way to intersperse the 'compare_expt select' form checkboxes
@@ -547,8 +645,7 @@ def update_expts(request):
             # operation.
             # We will just redirect to a new address though. That address can be
             # used to get the same comparison page directly if required.
-            post_operation = request.POST['update_expts_operation']
-            if (post_operation != 'Update Experiments'):
+            elif (post_operation != 'Update Experiments'):
                 # Check which directories must be included in the comparison
                 selected_expts = []
                 for form in formset:
@@ -560,7 +657,8 @@ def update_expts(request):
                 else:
                     return HttpResponseRedirect(reverse('expsift.views.compare_expts_base')+'?'+http.urlencode({'compare_operation' : post_operation}, True))
 
-
+            # Update Experiments operation. Write the new comments or properties
+            # files as appropriate
             for form in formset:
                 # Check if properties have to be updated for this directory
                 dir = form.cleaned_data['directory']
