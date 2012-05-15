@@ -239,7 +239,7 @@ def readDirCommentsFiles(directories):
 
 def createExptFormset(directories, dir2good_dict, dir2timestamps_dict,
                       dir2tagsfile_dict, dir2commentsfile_dict, unique_props):
-    initialFormData = []
+    initial_form_data = []
     expt_logs_conf = getattr(settings, 'EXPT_LOGS', {})
     expt_logs_dir = expt_logs_conf['directory']
     expt_dir_max_len = expt_logs_conf['max_dir_length']
@@ -268,13 +268,18 @@ def createExptFormset(directories, dir2good_dict, dir2timestamps_dict,
         initial_dict['expt_good'] = dir2good_dict.get(dir, None)
 
         unique_properties.append(sorted(unique_props[dir]))
-        initialFormData.append(initial_dict)
+        initial_form_data.append(initial_dict)
 
     # Sort the experiments in reverse chronological order
-    initialFormData.sort(key=lambda item:item['timestamp'], reverse=True)
+    # Also sort the unique properties associated with the experiments.
+    # For this we zip the two lists together, sort them and unzip
+    form_data_and_props = zip(initial_form_data, unique_properties)
+    form_data_and_props.sort(key=lambda item:item[0]['timestamp'], reverse=True)
+    (initial_form_data_sorted,
+     unique_properties_sorted) = zip(*form_data_and_props)
 
-    formset = ExptFormSet(initial=initialFormData,
-                          unique_props = unique_properties)
+    formset = ExptFormSet(initial=initial_form_data_sorted,
+                          unique_props = unique_properties_sorted)
 
     return formset
 
