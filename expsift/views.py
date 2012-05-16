@@ -647,17 +647,15 @@ def update_expts(request):
             # directory names
             elif (post_operation == 'Show Expt Dirs'):
                 # Check which directories have been selected
-                response = HttpResponse()
-                no_expts_selected = True
+                selected_expts = []
                 for form in formset:
                     if form.cleaned_data['compare_expt_select']:
                         directory = form.cleaned_data['directory']
-                        no_expts_selected = False
-                        response.write(directory + '<br>')
-                if no_expts_selected:
-                    return HttpResponse('No experiment directories selected.')
+                        selected_expts.append(directory)
+                if selected_expts:
+                    return HttpResponseRedirect(reverse('expsift.views.show_expt_directories')+'?'+http.urlencode({'selected_expts' : selected_expts}, True))
                 else:
-                    return response
+                    return HttpResponseRedirect(reverse('expsift.views.show_expt_directories'))
 
             # Check if a compare function should be called.
             # NOTE: This should really be just a GET operation, but there is no
@@ -773,3 +771,32 @@ def compare_expts_base(request):
 
 
     return HttpResponse('Requested expts = ' + str(request.GET.getlist('selected_expts')))
+
+
+def show_expt_directories(request):
+    redis_db_conf = getattr(settings, 'REDIS_DB', {})
+    redis_db_name = redis_db_conf['host']
+    redis_db_port = redis_db_conf['port']
+    if not redis_db_name:
+        return HttpResponse('Site settings do not specify Redis database name')
+
+    (properties_db,
+     dir2properties_db,
+     properties2dir_db) = redis_connect(redis_db_name, redis_db_port)
+
+    if 'selected_expts' in request.GET:
+        sel_directories = list(request.GET.getlist('selected_expts'))
+        dir2props_dict = getDirProperties(dir2properties_db, sel_directories)
+        (common_props, unique_props) = (
+                expsift.utils.getCommonAndUniqueProperties(dir2props_dict))
+        unique_props_str = []  # list of tuples (dir, props)
+        for directory, props in unique_props.iteritems():
+            unique_props_str.append((directory, ', '.join(sorted(props))))
+        # Sort directories by their unique property strings
+        unique_props_str.sort(key=lambda item:item[1])
+        return render_to_response('home/expt_directories.html',
+                                  { 'unique_props' : unique_props_str },
+                                  context_instance=RequestContext(request))
+
+    else:
+        return HttpResponse('No experiment directories selected.')

@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+     <title>ExpSift Home</title>
+</head>
+
+<body>
+<style>
+    td {padding: 5px;}
+</style>
+
+<table>
+{% for directory,props in unique_props %}
+    <tr> <td>{{ props }}</td><td>{{ directory }}</td> </tr>
+{% endfor %}
+</table>
+
+</body>
+</html>

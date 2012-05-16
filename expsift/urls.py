@@ -11,6 +11,8 @@ urlpatterns = patterns('',
     url(r'^update_expts/$', 'expsift.views.update_expts', name='update_expts'),
     url(r'^compare_expts/$', 'expsift.views.compare_expts_base',
         name='compare_expts'),
+    url(r'^show_expt_directories/$', 'expsift.views.show_expt_directories',
+        name='show_expt_dirs'),
     # url(r'^expsift/', include('expsift.foo.urls')),
 
     # Uncomment the admin/doc line below to enable admin documentation:
