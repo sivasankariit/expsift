@@ -1,7 +1,7 @@
 # Create your views here.
 
 from django.conf import settings
-from django.http import HttpResponse #TODO: remove
+from django.http import HttpResponse
 from django.http import HttpResponseRedirect
 from django.shortcuts import render_to_response
 from django.forms.widgets import SelectMultiple
@@ -642,6 +642,22 @@ def update_expts(request):
                                                        properties2dir_db)
                 # Redirect back to the page from where the POST was made
                 return HttpResponseRedirect(reverse('expsift.views.filter')+'?'+http.urlencode(request.GET, True))
+
+            # Check if the requested operation is to just output the selected
+            # directory names
+            elif (post_operation == 'Show Expt Dirs'):
+                # Check which directories have been selected
+                response = HttpResponse()
+                no_expts_selected = True
+                for form in formset:
+                    if form.cleaned_data['compare_expt_select']:
+                        directory = form.cleaned_data['directory']
+                        no_expts_selected = False
+                        response.write(directory + '<br>')
+                if no_expts_selected:
+                    return HttpResponse('No experiment directories selected.')
+                else:
+                    return response
 
             # Check if a compare function should be called.
             # NOTE: This should really be just a GET operation, but there is no
