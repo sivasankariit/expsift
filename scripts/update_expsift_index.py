@@ -36,6 +36,7 @@ def main(argv):
     if not isdir:
         print 'Base directory not valid'
         sys.exit(1)
+    FLAGS.base_dir = os.path.abspath(FLAGS.base_dir)
 
     # Property names and values DB
     properties_db = redis.StrictRedis(host=FLAGS.redis_db_host,
