@@ -198,3 +198,17 @@ COMPARE_FUNCTIONS = {
     #    'method_name' : ''
     #},
 }
+
+# Expsift: Function to display individual experiment directory info
+#
+# The dictionary specifies the module_name and method_name that will be called
+# to display the experiment info. The module should be available in PYTHON_PATH
+#
+# The method specified should return a django.http.HttpResponse object.
+#
+# If these values are not configured, then the default individual experiment
+# page is displayed.
+INDIVIDUAL_EXPT_PAGE_FUNC = {
+    'module_name' : 'individual_plot_www',
+    'method_name' : 'individual_plot',
+}

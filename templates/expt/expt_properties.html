@@ -1,0 +1,32 @@
+<style type="text/css">
+    div.props_container { overflow: hidden; }
+    div.props_container { border: 1px dashed maroon; }
+    div.props_container { margin: 10px; }
+    div.props_container { padding: 10px; }
+
+    #expt_props_table {padding: 5px;}
+    td.prop {padding: 5px;}
+</style>
+
+
+
+
+
+<div id="expt_props_container" class="props_container">
+<b>Experiment Properties:</b><br>
+<table id="expt_props_table">
+{% for prop in properties %}
+    {% if forloop.counter0|divisibleby:properties_cols %}
+    <tr>
+    {% endif %}
+
+    <td class="prop">{{ prop }}</td>
+
+    {% if forloop.counter0|add:1|divisibleby:properties_cols %}
+    </tr>
+    {% endif %}
+
+{% endfor %}
+
+</table>
+</div> <!-- props_container -->

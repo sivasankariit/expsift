@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+     <title>{% block title %} Experiment Info {% endblock %}</title>
+</head>
+
+<body>
+
+{% block body %}
+<div id="wrapper" class="wrapper">
+
+
+
+{% block expt_dir %}
+    {% include "expt/expt_dir.html" %}
+{% endblock %}
+
+
+
+{% block expt_properties %}
+    {% include "expt/expt_properties.html" %}
+{% endblock %}
+
+
+
+<!-- Add content to this block to simply extend the default page -->
+{% block expt_info %}
+{% endblock %}
+
+
+
+</div> <!-- wrapper -->
+{% endblock %} <!-- block body -->
+
+</body>
+</html>

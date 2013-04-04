@@ -800,3 +800,80 @@ def show_expt_directories(request):
 
     else:
         return HttpResponse('No experiment directories selected.')
+
+
+def individual_expt_base(request):
+    redis_db_conf = getattr(settings, 'REDIS_DB', {})
+    redis_db_name = redis_db_conf['host']
+    redis_db_port = redis_db_conf['port']
+    if not redis_db_name:
+        return HttpResponse('Site settings do not specify Redis database name')
+
+    (properties_db,
+     dir2properties_db,
+     properties2dir_db) = redis_connect(redis_db_name, redis_db_port)
+
+    expt_logs_conf = getattr(settings, 'EXPT_LOGS', {})
+    expt_logs_dir = expt_logs_conf['directory']
+    expt_dir_max_len = expt_logs_conf['max_dir_length']
+
+    if request.GET['directory']:
+        expt_dir = request.GET['directory']
+        dir2props_dict = getDirProperties(dir2properties_db, [expt_dir])
+
+        directory_url = (reverse('expsift.views.home') + 'expt-logs/' +
+                expt_dir[len(expt_logs_dir):])
+        props_sorted = sorted(dir2props_dict[expt_dir])
+        max_prop_len = 0
+        for prop in props_sorted:
+            if max_prop_len < len(prop):
+                max_prop_len = len(prop)
+        if max_prop_len <= 30:
+            props_cols = 4
+        elif max_prop_len <= 45:
+            props_cols = 3
+        elif max_prop_len <= 60:
+            props_cols = 2
+        else:
+            props_cols = 1
+
+        # Store template variables for the default individual experiment page
+        templateQDict = {'directory': expt_dir}
+        templateQDict['directory_url'] = directory_url
+        templateQDict['properties'] = props_sorted
+        templateQDict['properties_cols'] = props_cols
+
+        # Check if a custom function has been configured to generate the
+        # experiment page
+        expt_page_func_spec = getattr(settings, 'INDIVIDUAL_EXPT_PAGE_FUNC', {})
+        expt_page_module_name = expt_page_func_spec.get('module_name', '')
+        expt_page_method_name = expt_page_func_spec.get('method_name', '')
+        if not expt_page_module_name or not expt_page_method_name:
+            # Return the default experiment page
+            return render_to_response('expt/individual.html', templateQDict,
+                                      context_instance=RequestContext(request))
+
+        # Find the configured response generator method and execute it
+        if settings.DEBUG:
+            fp, pathname, desc = imp.find_module(expt_page_module_name)
+            mod = imp.load_module(expt_page_module_name, fp, pathname, desc)
+            expt_page_func = getattr(mod, expt_page_method_name)
+            return expt_page_func(expt_dir, dir2props_dict[expt_dir], templateQDict)
+        else:
+            try:
+                fp, pathname, desc = imp.find_module(expt_page_module_name)
+                try:
+                    mod = imp.load_module(expt_page_module_name, fp, pathname, desc)
+                    expt_page_func = getattr(mod, expt_page_method_name)
+                    return expt_page_func(expt_dir, dir2props_dict[expt_dir], templateQDict)
+                except Exception, err:
+                    print 'ERROR: %s' % str(err)
+                finally:
+                    if fp:
+                        fp.close()
+            except:
+                print ('Exception while trying to load individual experiment page module:',
+                       expt_page_module_name)
+        return HttpResponse('Requested expt directory = ' + expt_dir)
+    else:
+        return HttpResponse('Experiment directory not specified in request.')
