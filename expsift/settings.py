@@ -199,6 +199,13 @@ COMPARE_FUNCTIONS = {
     #},
 }
 
+# Expsift: Enable individual experiment directory pages
+# This enables an individual page for each experiment which can be used to
+# display any information particular to the experiment, such as graphs that
+# cannot combined into one across multiple experiments.
+# If False, filter results will link to actual directories.
+ENABLE_INDIVIDUAL_EXPT_PAGE = True
+
 # Expsift: Function to display individual experiment directory info
 #
 # The dictionary specifies the module_name and method_name that will be called

@@ -224,6 +224,18 @@ def readDirTagsFiles(directories):
     return res_files
 
 
+def directoryActualUrl(directory):
+    expt_logs_conf = getattr(settings, 'EXPT_LOGS', {})
+    expt_logs_dir = expt_logs_conf['directory']
+    return (reverse('expsift.views.home') +
+            'expt-logs/' +  directory[len(expt_logs_dir):])
+
+
+def directoryExptPageUrl(directory):
+    return (reverse('expsift.views.individual_expt_base') + '?' +
+            http.urlencode({'directory' : directory}, True))
+
+
 def readDirCommentsFiles(directories):
     max_file_size = getattr(settings, 'MAX_EXPSIFT_COMMENTS_FILE_SIZE', -1)
     res_files = {}
@@ -256,8 +268,10 @@ def createExptFormset(directories, dir2good_dict, dir2timestamps_dict,
         if len(dir) > len(dir_shortname):
             dir_shortname += '...'
         initial_dict['directory_display'] = dir_shortname
-        initial_dict['directory_url'] = (reverse('expsift.views.home') +
-                'expt-logs/' +  dir[len(expt_logs_dir):])
+        if getattr(settings, 'ENABLE_INDIVIDUAL_EXPT_PAGE', False):
+            initial_dict['directory_url'] = directoryExptPageUrl(dir)
+        else:
+            initial_dict['directory_url'] = directoryActualUrl(dir)
         if dir in dir2tagsfile_dict:
              initial_dict['properties_file'] = dir2tagsfile_dict[dir]
              initial_dict['properties_file_hidden'] = dir2tagsfile_dict[dir]
@@ -815,14 +829,15 @@ def individual_expt_base(request):
 
     expt_logs_conf = getattr(settings, 'EXPT_LOGS', {})
     expt_logs_dir = expt_logs_conf['directory']
-    expt_dir_max_len = expt_logs_conf['max_dir_length']
 
     if request.GET['directory']:
         expt_dir = request.GET['directory']
+        # Check if expt_dir is in the expt-logs root directory
+        if not expt_dir.startswith(expt_logs_dir):
+            return HttpResponse('Experiment directory incorrectly specified.')
+
         dir2props_dict = getDirProperties(dir2properties_db, [expt_dir])
 
-        directory_url = (reverse('expsift.views.home') + 'expt-logs/' +
-                expt_dir[len(expt_logs_dir):])
         props_sorted = sorted(dir2props_dict[expt_dir])
         max_prop_len = 0
         for prop in props_sorted:
@@ -839,7 +854,7 @@ def individual_expt_base(request):
 
         # Store template variables for the default individual experiment page
         templateQDict = {'directory': expt_dir}
-        templateQDict['directory_url'] = directory_url
+        templateQDict['directory_url'] = directoryActualUrl(expt_dir)
         templateQDict['properties'] = props_sorted
         templateQDict['properties_cols'] = props_cols
 
