@@ -11,7 +11,9 @@ from django.forms import formsets
 from django.forms.formsets import formset_factory
 from django.utils import http
 from django import forms
+import base64
 import datetime
+import hashlib
 import imp
 import itertools
 import os
@@ -147,14 +149,16 @@ def redis_connect(host, port):
     properties_db = redis.StrictRedis(host, port, db=0)
     dir2properties_db = redis.StrictRedis(host, port, db=1)
     properties2dir_db = redis.StrictRedis(host, port, db=2)
+    sha12dir_db = redis.StrictRedis(host, port, db=3)
 
     # Validate magic number keys of the databases
     assert(properties_db.get('magic_number') == '16378267')
     assert(dir2properties_db.get('magic_number') == '76378347')
     assert(properties2dir_db.get('magic_number') == '324728749')
+    assert(sha12dir_db.get('magic_number') == '39916801')
 
     # Return a tuple with all 3 databases
-    return (properties_db, dir2properties_db, properties2dir_db)
+    return (properties_db, dir2properties_db, properties2dir_db, sha12dir_db)
 
 
 def getProperties(prop_db):
@@ -475,7 +479,8 @@ def home(request):
 
     (properties_db,
      dir2properties_db,
-     properties2dir_db) = redis_connect(redis_db_name, redis_db_port)
+     properties2dir_db,
+     sha12dir_db) = redis_connect(redis_db_name, redis_db_port)
 
     propNames = properties_db.keys()
     propNames.remove('magic_number')
@@ -501,7 +506,8 @@ def filter(request):
 
     (properties_db,
      dir2properties_db,
-     properties2dir_db) = redis_connect(redis_db_name, redis_db_port)
+     properties2dir_db,
+     sha12dir_db) = redis_connect(redis_db_name, redis_db_port)
 
     propNames = properties_db.keys()
     propNames.remove('magic_number')
@@ -616,7 +622,8 @@ def update_expts(request):
 
     (properties_db,
      dir2properties_db,
-     properties2dir_db) = redis_connect(redis_db_name, redis_db_port)
+     properties2dir_db,
+     sha12dir_db) = redis_connect(redis_db_name, redis_db_port)
 
     ExptFormSet = formset_factory(ExptForm, extra=0)
     if request.method == 'POST':
@@ -661,13 +668,18 @@ def update_expts(request):
             # directory names
             elif (post_operation == 'Show Expt Dirs'):
                 # Check which directories have been selected
-                selected_expts = []
+                selected_expts_sha1 = []
                 for form in formset:
                     if form.cleaned_data['compare_expt_select']:
                         directory = form.cleaned_data['directory']
-                        selected_expts.append(directory)
-                if selected_expts:
-                    return HttpResponseRedirect(reverse('expsift.views.show_expt_directories')+'?'+http.urlencode({'selected_expts' : selected_expts}, True))
+                        sha1 = hashlib.sha1(directory)
+                        b64_sha1 = base64.b64encode(sha1.digest())
+                        selected_expts_sha1.append(b64_sha1)
+                # Pass the SHA1 hash of the experiment directories as part of
+                # the query string so that we can support more directories in
+                # a GET request.
+                if selected_expts_sha1:
+                    return HttpResponseRedirect(reverse('expsift.views.show_expt_directories')+'?'+http.urlencode({'sel_expts_sha1' : selected_expts_sha1}, True))
                 else:
                     return HttpResponseRedirect(reverse('expsift.views.show_expt_directories'))
 
@@ -680,13 +692,15 @@ def update_expts(request):
             # used to get the same comparison page directly if required.
             elif (post_operation != 'Update Experiments'):
                 # Check which directories must be included in the comparison
-                selected_expts = []
+                selected_expts_sha1 = []
                 for form in formset:
-                    dir = form.cleaned_data['directory']
                     if form.cleaned_data['compare_expt_select']:
-                        selected_expts.append(dir)
-                if selected_expts:
-                    return HttpResponseRedirect(reverse('expsift.views.compare_expts_base')+'?'+http.urlencode({'selected_expts' : selected_expts, 'compare_operation' : post_operation}, True))
+                        directory = form.cleaned_data['directory']
+                        sha1 = hashlib.sha1(directory)
+                        b64_sha1 = base64.b64encode(sha1.digest())
+                        selected_expts_sha1.append(b64_sha1)
+                if selected_expts_sha1:
+                    return HttpResponseRedirect(reverse('expsift.views.compare_expts_base')+'?'+http.urlencode({'sel_expts_sha1' : selected_expts_sha1, 'compare_operation' : post_operation}, True))
                 else:
                     return HttpResponseRedirect(reverse('expsift.views.compare_expts_base')+'?'+http.urlencode({'compare_operation' : post_operation}, True))
 
@@ -742,7 +756,8 @@ def compare_expts_base(request):
 
     (properties_db,
      dir2properties_db,
-     properties2dir_db) = redis_connect(redis_db_name, redis_db_port)
+     properties2dir_db,
+     sha12dir_db) = redis_connect(redis_db_name, redis_db_port)
 
     if not 'compare_operation' in request.GET:
         return HttpResponse('No compare operation specified')
@@ -756,8 +771,9 @@ def compare_expts_base(request):
         return HttpResponse('Requested compare operation "' +
                             compare_operation + '" not available.')
 
-    if 'selected_expts' in request.GET:
-        sel_directories = list(request.GET.getlist('selected_expts'))
+    if 'sel_expts_sha1' in request.GET:
+        sel_directories_sha1 = list(request.GET.getlist('sel_expts_sha1'))
+        sel_directories = [ sha12dir_db.get(digest) for digest in sel_directories_sha1 ]
         dir2props_dict = getDirProperties(dir2properties_db, sel_directories)
     else:
         dir2props_dict = {}
@@ -784,7 +800,7 @@ def compare_expts_base(request):
                    compare_func_spec['module_name'])
 
 
-    return HttpResponse('Requested expts = ' + str(request.GET.getlist('selected_expts')))
+    return HttpResponse('Requested expts = ' + str(sel_directories))
 
 
 def show_expt_directories(request):
@@ -796,10 +812,12 @@ def show_expt_directories(request):
 
     (properties_db,
      dir2properties_db,
-     properties2dir_db) = redis_connect(redis_db_name, redis_db_port)
+     properties2dir_db,
+     sha12dir_db) = redis_connect(redis_db_name, redis_db_port)
 
-    if 'selected_expts' in request.GET:
-        sel_directories = list(request.GET.getlist('selected_expts'))
+    if 'sel_expts_sha1' in request.GET:
+        sel_directories_sha1 = list(request.GET.getlist('sel_expts_sha1'))
+        sel_directories = [ sha12dir_db.get(digest) for digest in sel_directories_sha1 ]
         dir2props_dict = getDirProperties(dir2properties_db, sel_directories)
         (common_props, unique_props) = (
                 expsift.utils.getCommonAndUniqueProperties(dir2props_dict))
@@ -825,7 +843,8 @@ def individual_expt_base(request):
 
     (properties_db,
      dir2properties_db,
-     properties2dir_db) = redis_connect(redis_db_name, redis_db_port)
+     properties2dir_db,
+     sha12dir_db) = redis_connect(redis_db_name, redis_db_port)
 
     expt_logs_conf = getattr(settings, 'EXPT_LOGS', {})
     expt_logs_dir = expt_logs_conf['directory']
