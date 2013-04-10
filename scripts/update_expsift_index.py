@@ -7,8 +7,10 @@
 # information in their expsift_tags file is updated in the database.
 
 
+import base64
 import datetime
 import gflags
+import hashlib
 import os
 import redis
 import stat
@@ -50,16 +52,22 @@ def main(argv):
     properties2dir_db = redis.StrictRedis(host=FLAGS.redis_db_host,
                                           port=FLAGS.redis_db_port, db=2)
 
+    # SHA1 to directory DB
+    sha12dir_db = redis.StrictRedis(host=FLAGS.redis_db_host,
+                                    port=FLAGS.redis_db_port, db=3)
+
     # Flush the databases if required
     if FLAGS.flush:
         properties_db.flushdb()
         dir2properties_db.flushdb()
         properties2dir_db.flushdb()
+        sha12dir_db.flushdb()
 
     # Fill in magic key-value pairs for the databases
     properties_db.set('magic_number', 16378267)
     dir2properties_db.set('magic_number', 76378347)
     properties2dir_db.set('magic_number', 324728749)
+    sha12dir_db.set('magic_number', 39916801)
 
 
     # Update the database
@@ -69,6 +77,12 @@ def main(argv):
         if os.path.exists(os.path.join(path, 'expsift_tags')):
             tags_file = open(os.path.join(path, 'expsift_tags'), 'r')
             print 'Adding directory', path
+            sha1 = hashlib.sha1(path)
+            b64_sha1 = base64.b64encode(sha1.digest())
+            old_dir = sha12dir_db.get(b64_sha1)
+            if old_dir:
+                print '    ERRROR: SHA1 hash collision with', old_dir
+            sha12dir_db.set(b64_sha1, path)
             for line in tags_file:
                 # Comment lines
                 if line[0] == '#':
